@@ -1,0 +1,73 @@
+<resources>
+    <string name="app_name">HamClock</string>
+    <string name="starting_engine">Starting HamClock Engine…</string>
+    <string name="loading_interface">Loading HamClock Interface…</string>
+    <string name="start_failed">Unable to connect to HamClock local server</string>
+    <string name="backend_default">ohb.hamclock.app:80</string>
+
+    <string name="settings_title">HamClock Settings</string>
+    <string name="backend_server_label">Backend Host (host:port):</string>
+    <string name="backend_hint">host:port</string>
+    <string name="start_on_boot_label">Start automatically on device boot</string>
+    <string name="autostart_oem_notice">This device includes a background Auto-start manager. You may need to enable HamClock there for boot startup to work.</string>
+    <string name="background_restricted_notice">Background activity is restricted for this app in Android Battery settings.</string>
+    <string name="open_autostart_settings">Configure System Settings</string>
+    <string name="save_and_restart">Save &amp; Restart</string>
+    <string name="save">Save</string>
+    <string name="open_setup">Setup HamClock</string>
+    <string name="exit_hamclock">Exit HamClock</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="tv_first_run_title">Welcome to HamClock on TV!</string>
+    <string name="tv_first_run_guidance">HamClock requires initial setup (Callsign). To configure it easily from your phone, tablet, or PC browser:\n\n1. Select \"Allow local network access\" below\n2. Scan the QR Code or open the URL in your browser\n3. Enter your Callsign and click Done</string>
+
+    <string name="allow_external_label">Allow local network access (Wi-Fi / LAN)</string>
+    <string name="mdns_name_label">Device Name for mDNS (.local):</string>
+    <string name="mdns_name_hint">hamclock</string>
+    <string name="local_url_label">Access from browser on your local network:</string>
+    <string name="copy_url">Copy URL</string>
+    <string name="copied_to_clipboard">Copied URL to clipboard</string>
+    <string name="scan_qr_to_open">Scan with phone/tablet to open:</string>
+    <string name="server_ports_label">Server Ports:</string>
+    <string name="server_ports_compact">Ports: Web %1$d (R/W), %2$d (R/O)  •  REST: %3$s</string>
+    <string name="server_ports_format">Live Web (R/W): %1$d   •   Live Web (R/O): %2$d\nRESTful API: %3$s</string>
+    <string name="rest_port_label">RESTful API Port:</string>
+    <string name="rest_port_active">Port %1$d</string>
+    <string name="rest_port_disabled">Disabled</string>
+    <string name="rest_port_conflict_warning">⚠️ Port 8080 was in use by another app. Using fallback port %1$d.</string>
+    <string name="rest_port_conflict_disabled">⚠️ Port 8080 was in use by another app. REST API is disabled.</string>
+    <string name="rest_port_conflict_toast">Notice: Port 8080 is in use by another app. REST API switched to port %1$d.</string>
+    <string name="rest_port_disabled_toast">Notice: Port 8080 is in use by another app. REST API has been disabled.</string>
+    <string name="endpoint_live_clock">Live Clock (:8081)</string>
+    <string name="endpoint_antennas">Antennas (:8080)</string>
+    <string name="antenna_url_label">Antenna configuration page:</string>
+    <string name="run_in_background_label">Keep HamClock running in the background</string>
+    <string name="run_in_background_subtext">Keep engine, live web, and antenna servers active when navigating away or pressing Back</string>
+
+    <string name="tv_overscan_label">Screen Safe Margin (Overscan):</string>
+    <string name="tv_overscan_subtext">Inset display if TV edges crop clock information</string>
+    <string name="overscan_none">None (0%)</string>
+    <string name="overscan_normal">Normal (3%)</string>
+    <string name="overscan_large">Large (5%)</string>
+    <string name="press_back_again_to_exit">Press Back again to exit HamClock</string>
+    <string name="error_engine_title">Unable to Connect to HamClock</string>
+    <string name="error_engine_message">The HamClock engine could not start or port 8081 is in use. Tap Clean Restart to terminate any lingering processes and start fresh.</string>
+    <string name="clean_restart">Clean Restart</string>
+    <string name="rw_port_conflict_toast">Notice: Port 8081 is in use. Live clock switched to port %1$d.</string>
+
+    <string name="update_available_title">Update Available</string>
+    <string name="update_available_amazon_msg">A new version of HamClock (%1$s) has been released. Check the Amazon Appstore to update.</string>
+    <string name="update_available_github_msg">A new version of HamClock (%1$s) is available on GitHub.</string>
+    <string name="update_in_appstore">Update in Appstore</string>
+    <string name="update_view_release">View Release</string>
+    <string name="update_downloaded_title">Update Ready</string>
+    <string name="update_downloaded_msg">A new version of HamClock has finished downloading. Restart now to apply the update?</string>
+    <string name="update_restart_now">Restart Now</string>
+    <string name="update_later">Later</string>
+    <string name="update_never">Never</string>
+    <string name="auto_update_label">Check for updates automatically</string>
+    <string name="auto_update_subtext">Automatically check for and notify about new releases</string>
+    <string name="auto_update_disabled_toast">Automatic updates disabled. You can re-enable them in HamClock Settings.</string>
+</resources>
+
+

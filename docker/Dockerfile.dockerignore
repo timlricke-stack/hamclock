@@ -1,0 +1,7 @@
+# Dockerfile.ignore
+# don't include these files in the image
+**/*.env
+**/.git*
+**/eeprom
+**/hc.settings
+tmp/

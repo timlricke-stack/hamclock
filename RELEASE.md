@@ -1,0 +1,283 @@
+# HamClock Release Process
+
+This document describes how to initiate, monitor, and troubleshoot HamClock releases, along with the expected GitHub secrets, tag naming conventions, and pipeline architecture.
+
+---
+
+## 1. Initiating a Release via Command Line
+
+HamClock releases are managed by the GitHub Actions workflow [`.github/workflows/release.yml`](.github/workflows/release.yml). Instead of navigating to the GitHub web interface, you can trigger and monitor releases directly from your terminal using the GitHub CLI (`gh`).
+
+### Prerequisites
+
+Ensure you have the GitHub CLI installed and authenticated:
+
+```bash
+# Check if logged in and verify token scopes (needs repo access)
+gh auth status
+
+# If needed, log in:
+gh auth login
+```
+
+### Triggering the Release Workflow
+
+#### Non-Interactive Command
+
+Trigger the workflow by specifying the workflow file and the desired `tag_name`:
+
+```bash
+# Beta release example (auto: Google Play Open Testing, Amazon draft for LAT):
+gh workflow run release.yml -f tag_name=v4.32b00.0
+
+# Stable release example (auto: Google Play Production, Amazon direct submit for review):
+gh workflow run release.yml -f tag_name=v4.32.0
+
+# Optional: manually override Google Play track:
+gh workflow run release.yml -f tag_name=v4.32.0 -f play_store_track=beta
+
+# Optional: stage Google Play upload as draft (required if review was rejected or blocked from auto-submit):
+gh workflow run release.yml -f tag_name=v4.32.0 -f play_store_changes_not_sent_for_review=true
+
+# Optional: manually override Amazon submission behavior:
+gh workflow run release.yml -f tag_name=v4.32.0 -f amazon_submit_for_review=false
+
+# Optional: create as a draft release:
+gh workflow run release.yml -f tag_name=v4.32.0 -f publish_release=false
+
+# Optional: skip GitHub Docker build (e.g. if building Docker image locally):
+gh workflow run release.yml -f tag_name=v4.32.0 -f build_docker=false
+
+# Optional: skip uploading to Google Play Store:
+gh workflow run release.yml -f tag_name=v4.32.0 -f push_play_store=false
+
+# Optional: skip uploading to Amazon Appstore:
+gh workflow run release.yml -f tag_name=v4.32.0 -f push_amazon_appstore=false
+
+# Optional: target a specific branch (defaults to main)
+gh workflow run release.yml --ref main -f tag_name=v4.32.0
+```
+
+#### Interactive Command
+
+To run interactively, run `gh workflow run` with no arguments. `gh` will prompt you to select the workflow, enter the `tag_name`, and configure the release options:
+
+```bash
+gh workflow run
+```
+
+*(Note: Specifying `release.yml` directly as an argument, e.g. `gh workflow run release.yml`, tells `gh` to run non-interactively, so it dispatches immediately using default values rather than prompting).*
+
+#### Workflow Inputs (`workflow_dispatch`)
+
+| Input | Type | Default | Description |
+|---|---|---|---|
+| `tag_name` | string | `v0.0.0` | Version tag to release (e.g., `v4.32.0` or `v4.32b00.0`). |
+| `publish_release` | choice (`true`, `false`) | `true` | When `true`, publishes the release immediately. Set to `false` to create as a draft. |
+| `build_docker` | choice (`true`, `false`) | `true` | When `true`, builds and pushes the multi-platform Docker image. |
+| `push_play_store` | choice (`true`, `false`) | `true` | When `true`, uploads the Android AAB to Google Play. |
+| `play_store_track` | choice (`auto`, `beta`, `production`, `internal`) | `auto` | Target Google Play track. `auto` sends beta tags (`*b*`) to Open testing (`beta`) and stable tags to Production (`production`). |
+| `play_store_changes_not_sent_for_review` | choice (`false`, `true`) | `false` | When `true`, stages the upload as a draft in Google Play without auto-submitting for review. Required when Google Play locks automated API submissions following a review rejection or pending policy declaration. |
+| `push_amazon_appstore` | choice (`true`, `false`) | `true` | When `true`, uploads the Android APK to the Amazon Appstore. |
+| `amazon_submit_for_review` | choice (`auto`, `true`, `false`) | `auto` | When `auto`, stable tags submit directly for review (to become Current Version) and beta tags leave a draft upcoming version for Live App Testing (LAT). |
+
+### Monitoring the Workflow
+
+#### Live Progress Watch
+
+To stream progress for the newly triggered run:
+
+```bash
+# Watch the latest workflow run interactively
+gh run watch
+```
+
+#### Listing Workflow Runs
+
+To view recent release runs and their statuses:
+
+```bash
+gh run list --workflow=release.yml -L 5
+```
+
+#### Viewing Logs and Failures
+
+To inspect the logs of a specific run:
+
+```bash
+# View summary of a run
+gh run view <RUN_ID>
+
+# View full logs or failed steps
+gh run view <RUN_ID> --log
+gh run view <RUN_ID> --log-failed
+
+# Cancel a running workflow:
+gh run cancel <RUN_ID>
+
+# Force cancel if a run is unresponsive (e.g., during long-running Docker builds):
+gh run cancel <RUN_ID> --force
+```
+
+#### Verifying the Created Release
+
+Once the pipeline completes:
+
+```bash
+# View release details and uploaded assets
+gh release view <TAG_NAME>
+
+# Example:
+gh release view v4.32b00.0
+```
+
+---
+
+## 2. Tag Naming Convention
+
+The release workflow parses and validates the `tag_name` input with the following regex:
+
+```bash
+HC_VER_PATTERN='^[0-9]+\.[0-9]+(b[0-9][0-9])?$'
+```
+
+The workflow strips the leading `v` / `V` and strips the trailing patch component (`.*`):
+- `TAG`: The full Git tag name (e.g., `v4.32.0` or `v4.32b00.0`).
+- `HC_TAG`: The version embedded into HamClock sources (`ESPHamClock/version.cpp`) and asset file names.
+
+### Allowed Formats
+
+| Release Type | Tag Pattern | Example Tag | Derived `HC_TAG` |
+|---|---|---|---|
+| **Stable** | `v<major>.<minor>.<patch>` | `v4.32.0` | `4.32` |
+| **Beta** | `v<major>.<minor>b<beta_num>.<patch>` | `v4.32b00.0` | `4.32b00` |
+
+> [!IMPORTANT]
+> Always include the trailing `.0` (or patch number) in `tag_name`. If omitted (e.g. `v4.32`), the pipeline's regex validation will fail and immediately abort the run.
+>
+> The pipeline also performs an automated pre-flight check at step 1 to verify that the tag or GitHub release does not already exist. If an existing release is detected, the run aborts immediately to avoid building or deploying duplicate releases.
+
+---
+
+## 3. Required GitHub Secrets
+
+The release workflow requires secrets for Android code signing and Docker Hub publishing.
+
+### Current Secrets Reference
+
+| Secret Name | Required By | Description |
+|---|---|---|
+| `ANDROID_KEYSTORE_BASE64` | Android Build | Base64-encoded release `.keystore` / `.jks` file used by Gradle to sign release APK and AAB. |
+| `ANDROID_KEYSTORE_PASSWORD` | Android Build | Password unlocking the release keystore file. |
+| `ANDROID_KEY_ALIAS` | Android Build | Key alias inside the keystore for the HamClock release key. |
+| `ANDROID_KEY_PASSWORD` | Android Build | *(Optional)* Key password. If unset or blank, Gradle falls back to `ANDROID_KEYSTORE_PASSWORD`. |
+| `DOCKERHUB_USERNAME` | Docker Job | Docker Hub account username (e.g., `komacke`). |
+| `DOCKERHUB_TOKEN` | Docker Job | Docker Hub Personal Access Token (PAT) with write/push permissions. |
+| `AMAZON_APPSTORE_CLIENT_ID` | Amazon Upload | Client ID from the Amazon Appstore API Access Security Profile. |
+| `AMAZON_APPSTORE_CLIENT_SECRET` | Amazon Upload | Client Secret from the Amazon Appstore API Access Security Profile. |
+| `AMAZON_APPSTORE_APP_ID` | Amazon Upload | App ID of the application in the Amazon Developer Console. |
+
+### Inspecting and Managing Secrets via CLI
+
+```bash
+# List repository secrets
+gh secret list
+
+# Set or update a secret
+gh secret set DOCKERHUB_TOKEN
+
+# Encode and upload an Android keystore:
+base64 -w 0 path/to/release.keystore | gh secret set ANDROID_KEYSTORE_BASE64
+```
+
+---
+
+## 4. Pipeline Jobs & Artifacts
+
+The release workflow executes two jobs sequentially: `release` followed by `docker` (ensuring Docker images are only built and pushed if the release succeeds).
+
+### Job 1: `release`
+
+1. **Version Injection:**
+   - Patches `ESPHamClock/version.cpp` with `HC_TAG`.
+   - Creates `VERSION.txt` containing `TAG=$TAG`.
+   - Patches `docker/manage-hc-docker.sh` with `HC_MANAGER_VERSION=$TAG`.
+2. **Archives Packaging:**
+   - `dist/HC-$TAG.tar.gz` and `dist/HC-$TAG.zip` (full repository archives).
+   - `dist/ESPHamClock-V$HC_TAG.zip` (standalone HamClock source zip).
+   - `dist/hamclock-contrib-V$HC_TAG.zip` (contrib zip).
+3. **Android Build & App Store Uploads:**
+   - Runs `./gradlew assembleRelease bundleRelease` with JDK 17.
+   - Outputs release `.apk` (direct install) and `.aab` (Google Play Store bundle).
+   - **Google Play Store (`push_play_store`):**
+     - Automatically selects target track based on the release tag:
+       - **Beta tags** (`*b*`, e.g. `v4.32b00.0`) $\rightarrow$ **Open testing** (`beta` track).
+       - **Stable tags** (e.g. `v4.32.0`) $\rightarrow$ **Production** (`production` track).
+       - Can be overridden via `play_store_track` (`auto`, `beta`, `production`, `internal`).
+     - Submits with `status: completed` to immediately trigger Google's automated/manual review queue.
+     - **Handling Review Rejections or Blocked Auto-Submissions (`changesNotSentForReview`):** If a previous release was rejected or Google Play requires manual confirmation for policy changes, Google's API rejects automated submissions with `Changes cannot be sent for review automatically. Please set the query parameter changesNotSentForReview to true.` In this situation, set `play_store_changes_not_sent_for_review=true`. The workflow will successfully stage the `.aab` in Google Play Console without error, allowing you to review the changes and click **Send changes for review** manually from the console UI.
+     - **Managed Publishing:** Because Managed Publishing is turned ON in Google Play Console, approved releases do *not* go live automatically. Instead, they wait in Google Play Console under **Publishing Overview** -> **Ready to publish**, giving you the final manual control to send changes live to users.
+   - **Amazon Appstore (`push_amazon_appstore`):**
+     - Automatically selects submission mode based on the release tag (via `amazon_submit_for_review=auto`):
+       - **Beta tags** (`*b*`): Uploads APK and release notes to an "Upcoming Version" draft with `--skip-commit`. Because Amazon lacks a public REST API for Live App Testing (LAT), this prepares everything as a draft. In the Amazon Developer Console, go to **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** and click **Start test**.
+       - **Stable tags**: Commits the edit session to submit directly for Amazon review to become the live "Current Version".
+       - Can be overridden via `amazon_submit_for_review` (`auto`, `true`, `false`).
+4. **GitHub Release Publication:**
+   - Creates the GitHub Release via `gh release create`. By default creates an active, published release; can be created as a draft using `-f publish_release=false`.
+   - Generates release notes automatically from commit log (`--generate-notes`).
+   - Attaches:
+     - `docker/manage-hc-docker-$TAG.sh`
+     - `debian/install-hc-rpi`
+     - `dist/ESPHamClock-V$HC_TAG.zip`
+     - `old-versions/ESPHamClock-V3.10.zip`
+     - `old-versions/ohb.hamclock.app_ESPHamClock-V3.10.ino.bin`
+     - `dist/hamclock-contrib-V$HC_TAG.zip`
+     - `doc/HamClockUserGuide.pdf`
+     - `doc/compatibility.json`
+     - `dist/org.openhamclock*.apk`
+     - `dist/org.openhamclock*.aab`
+
+### Job 2: `docker` *(Optional - enabled by default)*
+
+*Can be skipped by passing `-f build_docker=false` via CLI or unchecking the box in the GitHub web UI.*
+
+1. Sets up Docker Buildx and QEMU.
+2. Logs in to Docker Hub using `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
+3. Runs `./docker/build-image.sh -m` to build and push multi-platform images (`linux/amd64`, `linux/arm64`) tagged as `komacke/hamclock:$TAG` (and `latest` for stable releases).
+
+---
+
+## 5. Institutional Knowledge & Release Checklist
+
+*(Add pre-release and post-release procedures, notification lists, and operational steps here.)*
+
+- [ ] Ensure `main` branch is clean and all CI tests (`tests.yml`, `compile-web.yml`, `compile-fb0.yml`) are passing.
+- [ ] Update release notes / change logs if needed (`HC_RELEASE-stable.txt` / `HC_RELEASE-beta.txt`).
+- [ ] Update documentation (`doc/HamClockUserGuide.pdf` or related files) if new features are introduced.
+- [ ] Run `gh workflow run release.yml -f tag_name=<tag>`.
+- [ ] Monitor build and verify assets on GitHub Release page (`gh release view <tag>`).
+- [ ] Verify multi-arch images on Docker Hub.
+- [ ] **Google Play Console:** Once Google's review completes, open Google Play Console $\rightarrow$ **Publishing Overview** and click **Publish changes** to roll out the release to users (Open testing for beta, Production for stable).
+- [ ] **Amazon Developer Console:**
+  - **If Beta:** Open App $\rightarrow$ **Live App Testing** $\rightarrow$ **Start a new test** $\rightarrow$ **Copy from upcoming version** $\rightarrow$ select testers and start test.
+  - **If Stable:** Verify in Amazon Developer Console that the upcoming version shows as "Submitted for review" to become the Current Version.
+
+---
+
+## 6. Verified Commits & Tags (SSH Signing Keys)
+
+If your local git environment is configured to sign commits or tags with SSH (`commit.gpgsign=true` / `tag.gpgsign=true`), GitHub requires that your public key be registered specifically as a **Signing Key** (rather than only an Authentication Key):
+
+1. Check your public key:
+   ```bash
+   cat ~/.ssh/git-signing.pub
+   ```
+2. Go to **GitHub Settings -> [SSH and GPG keys](https://github.com/settings/keys)**.
+3. Click **New SSH Key**.
+4. In the **Key type** dropdown, select **Signing Key**.
+5. Paste your public key and save.
+
+*(Alternatively, run `gh auth refresh -h github.com -s admin:ssh_signing_key` and then `gh ssh-key add ~/.ssh/git-signing.pub --type signing`)*.
+
+Once added as a signing key, GitHub will mark your releases, tags, and commits with the green **Verified** badge.
+
